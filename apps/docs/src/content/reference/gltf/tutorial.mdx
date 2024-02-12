@@ -1,0 +1,315 @@
+---
+order: 1
+category: '@threlte/gltf'
+name: Tutorial
+---
+
+This tutorial will cover all things @threlte/gltf from loading models, to using their animations, and even more advanced features such as compression.
+
+<Tip type="info">
+  You should be well versed in Svelte, Three.js, and Threlte before using @threlte/gltf. If you are unsure
+  about Svelte, consult its [Tutorial](https://svelte.dev/tutorial) for a quick introduction. As for
+  Threejs, make sure you at least glance over its [official documentation](https://threejs.org). 
+  For the basics on Threlte, you can consult the [learning section of this website](/docs/learn/getting-started/introduction).
+</Tip>
+
+## Storing Models
+
+
+The models in this project will be stored in the public folder that comes with Svelte so that they can easily be accessed and loaded.
+The first model we will use is [Battle Damaged Sci-fi Helmet](https://skfb.ly/QNwv) by [theblueturtle_](https://sketchfab.com/theblueturtle_)
+
+
+## Initial App Structure
+
+The initial app structure for this tutorial includes a simple scene setup and some cameras to frame the 3D model correctly. The model will be created in a separate <i>Model.svelte</i> file.
+
+```svelte title="App.svelte"
+<script>
+  import { Canvas } from '@threlte/core'
+  import Scene from './Scene.svelte'
+</script>
+
+<Canvas>
+  <Scene />
+</Canvas>
+```
+
+```svelte title="Scene.svelte"
+<script lang="ts">
+  import { T } from '@threlte/core'
+  import { OrbitControls } from '@threlte/extras'
+  import Model from './Model.svelte'
+
+</script>
+
+<T.PerspectiveCamera
+  makeDefault
+  position={[5, 2, 5]}
+  fov={25}
+>
+  <OrbitControls
+    autoRotate
+    enableDamping
+  />
+</T.PerspectiveCamera>
+
+<T.AmbientLight />
+<T.DirectionalLight position={[5, 10, 5]} />
+
+<Model />
+```
+
+## GLTF Tag
+
+The simplest way to get started with 3D models in Threlte is with the GLTF tag. This tag loads the 3D model specified in the URL attribute in its entirety into one object. However, models loaded in this method cannot be efficiently re-used.
+
+```svelte title="Model.svelte" {1-9}+
+<script lang="ts">
+    import { T } from '@threlte/core'
+    import { GLTF } from '@threlte/extras'
+
+</script>
+
+<GLTF url="/models/helmet/DamagedHelmet.gltf" />
+```
+
+<Example
+  path="gltf/step-1"
+  hideCode
+/>
+
+
+## Hooks
+useGltf is a Svelte hook that allows the different nodes and materials of a model to be loaded and used separately.
+These loaded nodes and materials can be re-used across multiple models and altered freely.
+
+The current example of loading the entire model can also be switched over to the useGltf hook rather easily. 
+
+```svelte title="Model.svelte" {3}m {8}- {5,10-12}+
+<script lang="ts">
+    import { T } from '@threlte/core'
+    import { useGltf } from '@threlte/extras' // m
+
+    const gltf = useGltf('/models/helmet/DamagedHelmet.gltf')
+</script>
+
+<GLTF url="/models/helmet/DamagedHelmet.gltf" />
+
+{#if $gltf}
+  <T is={$gltf.nodes['node_damagedHelmet_-6514']} />
+{/if}
+```
+
+<Example
+  path="gltf/step-2"
+  hideCode
+/>
+
+The individual nodes and materials of a model can be accessed through the hook.
+
+```svelte
+<script lang="ts">
+  import { useGltf } from '@threlte/extras'
+  const gltf = useGltf('/models/helmet/DamagedHelmet.gltf')
+  $: nodes: $gltf?.nodes
+  $: materials: $gltf?.materials
+</script>
+```
+
+This allows you to control the pieces of the model that you use. For example, you can use the geometry
+of a model without using any of the materials.
+
+<Example
+  path="gltf/step-3"
+/>
+
+## Compression Algorithms
+
+Threlte has built in support for using and generating compressed models
+of GLTF file formats. Generating compressed models is detailed in the [command line
+section](#command-line) at the end of this tutorial. We will focus in this section on 
+loading and using compressed models, specifically with DRACO compression. Compression is very
+important for large models and models with included animations <i>(hint, hint)</i>.
+
+The model being used in this section is [Littlest Tokyo](https://artstation.com/artwork/1AGwX) by [Glen
+  Fox](https://artstation.com/glenatron), CC Attribution.
+
+With the complexity of this model, we are switching back to GLTF tag method of loading
+models so that all the nodes are loaded automatically.
+
+```svelte title="Scene.svelte" {10-11}m {12-13,18}+
+<script lang="ts">
+  import { T } from '@threlte/core'
+  import { OrbitControls } from '@threlte/extras'
+  import Model from './Model.svelte'
+
+</script>
+
+<T.PerspectiveCamera
+  makeDefault
+  position={[600, 200, 600]}
+  fov={45}
+  near={10}
+  far={10000}
+>
+  <OrbitControls
+    autoRotate
+    enableDamping
+    target={[-60, -75, 0]}
+  />
+</T.PerspectiveCamera>
+
+<T.AmbientLight />
+<T.DirectionalLight position={[5, 10, 5]} />
+
+<Model />
+```
+
+It's as simple as setting the useDraco option to true for your model.
+
+
+```svelte title="Model.svelte" {3}m {5,8-10}- {12-15}+
+<script lang="ts">
+  import { T } from '@threlte/core'
+  import { GLTF } from '@threlte/extras'
+
+  const gltf = useGltf('/models/helmet/DamagedHelmet.gltf')
+</script>
+
+{#if $gltf}
+    <T is={$gltf.nodes['node_damagedHelmet_-6514']} />
+{/if}
+
+<GLTF
+  url="/models/LittlestTokyo.glb"
+  useDraco={true}
+/>
+```
+
+<Example
+  path="gltf/step-4"
+  hideCode
+/>
+
+This can also be done for the useGltf hook doing the following:
+```svelte
+<script lang="ts">
+    const gltf = useGltf('/models/LittlestTokyo.gltf' {
+        useDraco: true
+    })
+</script>
+```
+
+Or, with a custom decoder:
+```svelte
+<script lang="ts">
+    const gltf = useGltf('/models/LittlestTokyo.gltf' {
+        useDraco: "https://www.gstatic.com/draco/v1/decoders/"
+    })
+</script>
+```
+
+## Animations
+
+Animations are accessed in Threlte with the useGltfAnimations hook. The hook can be used to load in single animations or all animations at once
+by changing the desired animation in the type of the function. In this case, we are
+accessing the 'Take 001' animation. It will load the animations of the model bound to the gltf
+variable but it can also take a model as an argument.
+
+```svelte title="Model.svelte" {3}m {5,7,11}+
+<script lang="ts">
+  import { T } from '@threlte/core'
+  import { GLTF, useGltfAnimations } from '@threlte/extras'
+  
+  const { gltf, actions } = useGltfAnimations<'Take 001'>() 
+
+  $: $actions['Take 001']?.play()
+</script>
+
+<GLTF
+  bind:gltf={$gltf}
+  url="/models/LittlestTokyo.glb"
+  useDraco={true}
+/>
+```
+
+<Example
+  path="gltf/step-5"
+  hideCode
+/>
+
+## Command Line
+
+The @threlte/gltf api is very simple and concise, doing a lot of the work for you.
+However, if you want to re-use a large model with many animations it becomes very cumbersome
+to import all of the animations and nodes using the hooks. This is where the command line tool comes in.
+It can take a GLTF model and automatically generate a <i>Model.svelte</i> file for you with every
+piece of the model setup.
+
+For example, the following command can be used for the LittlestTokyo model.
+
+```bash
+npx @threlte/gltf@latest LittlestTokyo.glb --transform
+```
+
+This will generate a massive model file like so:
+
+```svelte
+<!--
+Auto-generated by: https://github.com/threlte/threlte/tree/main/packages/gltf
+Command: npx @threlte/gltf@2.0.1 LittlestTokyo.glb --transform
+Author: glenatron (https://sketchfab.com/glenatron)
+License: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+Source: https://sketchfab.com/models/94b24a60dc1b48248de50bf087c0f042
+Title: Littlest Tokyo
+-->
+
+<script>
+  import { Group } from 'three'
+  import { T, forwardEventHandlers } from '@threlte/core'
+  import { useGltf, useGltfAnimations } from '@threlte/extras'
+
+  export const ref = new Group()
+
+  const gltf = useGltf('/LittlestTokyo-transformed.glb', { useDraco: true })
+  export const { actions, mixer } = useGltfAnimations(gltf, ref)
+
+  const component = forwardEventHandlers()
+</script>
+
+<T is={ref} dispose={false} {...$$restProps} bind:this={$component}>
+  {#await gltf}
+    <slot name="fallback" />
+  {:then gltf}
+    <T.Group name="OSG_Scene">
+      <T.Group name="RootNode_(gltf_orientation_matrix)" rotation={[-Math.PI / 2, 0, 0]}>
+        <T.Group name="RootNode_(model_correction_matrix)">
+          <T.Group name="4cd116fc63ca40809810ca0842dc78edfbx" rotation={[Math.PI / 2, 0, 0]}>
+            <T.Group>
+              <T.Group name="RootNode">
+                <T.Group>
+                  <T.Group
+                    name="Object078"
+                    position={[76.07, 163.94, 118.6]}
+                    rotation={[-Math.PI / 3, 0, 0]}
+                    scale={3.1}
+                  >
+                    <T.Group position={[-97.41, -7.13, -96.27]}>
+                      <T.Mesh
+                        name="Object078_Plastic_Soft_0"
+                        geometry={gltf.nodes.Object078_Plastic_Soft_0.geometry}
+                        material={gltf.materials.Plastic_Soft}
+                      />
+                    </T.Group>
+
+                    ...
+```
+
+This file can then be included in your scene like any other model, re-using geometry
+and materials wherever it can.
+
+```svelte
+<Model position={[0, 0, 0]} />
+<Model position={[10, 0, -10]} />
+```
